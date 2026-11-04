@@ -45,6 +45,9 @@ importers:
       '@hydrogen/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
+      '@hydrogen/wasm-core':
+        specifier: workspace:*
+        version: link:../../packages/wasm-core
       '@tauri-apps/api':
         specifier: ^2.2.0
         version: 2.12.4

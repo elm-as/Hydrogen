@@ -1,64 +1,60 @@
 import type { ProjectDef, WorldState } from "@hydrogen/bindings";
-import { projectDefToGraph, updateEntityComponentField } from "@hydrogen/editor-core";
-import { Badge, Button, InspectorRow } from "@hydrogen/ui-kit";
-import { Background, Controls, type Node, ReactFlow } from "@xyflow/react";
-import { useMemo, useState } from "react";
+import { projectDefToGraph } from "@hydrogen/editor-core";
+import { Badge, Button } from "@hydrogen/ui-kit";
+import initWasm, { WasmRuntime } from "@hydrogen/wasm-core";
+import type { Node } from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
+
+import { InspectorPanel } from "./components/InspectorPanel";
+import { NodalCanvas } from "./components/NodalCanvas";
+import { RogueGameView } from "./components/RogueGameView";
+import { COUNTER_PROJECT, ROGUE_PROJECT } from "./templates/projects";
 import "./style.css";
 
-const INITIAL_PROJECT: ProjectDef = {
-  schema_version: { major: 0, minor: 1, patch: 0 },
-  project_id: "studio_sample",
-  display_name: "Projet Studio Demo",
-  components: [
-    {
-      id: "counter",
-      fields: {
-        value: {
-          kind: "int",
-          default_value: { kind: "int", data: 0 },
-        },
-      },
-    },
-  ],
-  entities: [
-    {
-      id: "hero",
-      components: {
-        counter: {
-          value: { kind: "int", data: 10 },
-        },
-      },
-    },
-  ],
-  events: [
-    {
-      id: "threshold_reached",
-      payload_fields: {},
-    },
-  ],
-  rules: [
-    {
-      id: "inc_counter",
-      trigger: { kind: "on_tick" },
-      condition: null,
-      actions: [
-        {
-          kind: "add_numeric",
-          target: { entity_id: "hero", component_id: "counter", field_id: "value" },
-          delta: { kind: "int", data: 1 },
-        },
-      ],
-    },
-  ],
-};
-
 export function App() {
-  const [project, setProject] = useState<ProjectDef>(INITIAL_PROJECT);
+  const [activeProjectKey, setActiveProjectKey] = useState<"rogue" | "counter">("rogue");
+  const [activeTab, setActiveTab] = useState<"game" | "graph">("game");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  const [wasmReady, setWasmReady] = useState(false);
+  const [runtime, setRuntime] = useState<WasmRuntime | null>(null);
   const [ticksCount, setTicksCount] = useState(0);
   const [simulatedWorld, setSimulatedWorld] = useState<WorldState | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Studio prêt.");
+  const [statusMessage, setStatusMessage] = useState("Initialisation WASM...");
+  const [hasSavedSlot, setHasSavedSlot] = useState(false);
 
+  const project: ProjectDef = activeProjectKey === "rogue" ? ROGUE_PROJECT : COUNTER_PROJECT;
+
+  // Initialisation du runtime WASM
+  useEffect(() => {
+    async function boot() {
+      try {
+        await initWasm();
+        setWasmReady(true);
+      } catch (err) {
+        setStatusMessage(`Erreur WASM: ${String(err)}`);
+      }
+    }
+    boot();
+  }, []);
+
+  // Recréation du runtime lors du changement de projet
+  useEffect(() => {
+    if (!wasmReady) return;
+    try {
+      const rt = new WasmRuntime(JSON.stringify(project));
+      setRuntime(rt);
+      setTicksCount(0);
+      setSimulatedWorld(JSON.parse(rt.get_world_state_json()) as WorldState);
+      setStatusMessage(`Projet '${project.display_name}' chargé.`);
+      const saved = localStorage.getItem(`hydrogen_slot_${project.project_id}`);
+      setHasSavedSlot(saved !== null);
+    } catch (err) {
+      setStatusMessage(`Erreur de chargement : ${String(err)}`);
+    }
+  }, [project, wasmReady]);
+
+  // Conversion en graphe nodal
   const { flowNodes, flowEdges } = useMemo(() => {
     const graph = projectDefToGraph(project);
     const nodes: Node[] = graph.nodes.map((n) => ({
@@ -78,37 +74,53 @@ export function App() {
     return { flowNodes: nodes, flowEdges: edges };
   }, [project]);
 
-  function handleIncrementInitial() {
-    const currentVal = project.entities[0]?.components.counter?.value;
-    const currentNum = currentVal?.kind === "int" ? currentVal.data : 0;
-    const updated = updateEntityComponentField(
-      project,
-      { entityId: "hero", compId: "counter", fieldId: "value" },
-      { kind: "int", data: currentNum + 5 },
-    );
-    setProject(updated);
-    setStatusMessage("Valeur initiale du héros augmentée de +5.");
+  function handleTick() {
+    if (!runtime) return;
+    try {
+      runtime.tick();
+      const updatedWorld = JSON.parse(runtime.get_world_state_json()) as WorldState;
+      const count = Number(runtime.get_tick_count());
+      setSimulatedWorld(updatedWorld);
+      setTicksCount(count);
+      setStatusMessage(`Cycle ${count} exécuté par le cœur Rust.`);
+    } catch (err) {
+      setStatusMessage(`Erreur cycle : ${String(err)}`);
+    }
   }
 
-  function handleSimulateTick() {
-    setTicksCount((prev) => prev + 1);
-    const baseValue = project.entities[0]?.components.counter?.value;
-    const num = baseValue?.kind === "int" ? baseValue.data : 0;
+  function handleReset() {
+    if (!wasmReady) return;
+    const rt = new WasmRuntime(JSON.stringify(project));
+    setRuntime(rt);
+    setTicksCount(0);
+    setSimulatedWorld(JSON.parse(rt.get_world_state_json()) as WorldState);
+    setStatusMessage("Partie réinitialisée.");
+  }
 
-    const mockWorld: WorldState = {
-      entities: {
-        hero: {
-          id: "hero",
-          components: {
-            counter: {
-              value: { kind: "int", data: num + ticksCount + 1 },
-            },
-          },
-        },
-      },
-    };
-    setSimulatedWorld(mockWorld);
-    setStatusMessage(`Cycle ${ticksCount + 1} simulé avec succès.`);
+  function handleSaveSlot() {
+    if (!simulatedWorld) return;
+    const payload = JSON.stringify({ tick: ticksCount, world: simulatedWorld });
+    localStorage.setItem(`hydrogen_slot_${project.project_id}`, payload);
+    setHasSavedSlot(true);
+    setStatusMessage(`Slot de sauvegarde enregistré (cycle ${ticksCount}).`);
+  }
+
+  function handleLoadSlot() {
+    const saved = localStorage.getItem(`hydrogen_slot_${project.project_id}`);
+    if (!saved || !wasmReady) return;
+    try {
+      const data = JSON.parse(saved) as { tick: number; world: WorldState };
+      const rt = new WasmRuntime(JSON.stringify(project));
+      for (let i = 0; i < data.tick; i += 1) {
+        rt.tick();
+      }
+      setRuntime(rt);
+      setTicksCount(data.tick);
+      setSimulatedWorld(data.world);
+      setStatusMessage(`Slot restauré au cycle ${data.tick}.`);
+    } catch (err) {
+      setStatusMessage(`Erreur restauration : ${String(err)}`);
+    }
   }
 
   return (
@@ -116,56 +128,59 @@ export function App() {
       <header className="studio-topbar">
         <div className="studio-title">
           <span>Hydrogen Studio</span>
-          <Badge variant="accent">v0.1.0 (Tauri v2 + React)</Badge>
+          <Badge variant="accent">WASM Rust v0.1.0</Badge>
         </div>
-        <div className="studio-actions">
-          <Button variant="secondary" onClick={handleIncrementInitial}>
-            Modifier héros (+5)
+
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <select
+            value={activeProjectKey}
+            onChange={(e) => setActiveProjectKey(e.target.value as "rogue" | "counter")}
+            style={selectStyle}
+          >
+            <option value="rogue">Rogue Core (Mini-Jeu)</option>
+            <option value="counter">Application Compteur</option>
+          </select>
+
+          <Button
+            variant={activeTab === "game" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setActiveTab("game")}
+          >
+            Vue Jeu
           </Button>
-          <Button variant="primary" onClick={handleSimulateTick}>
-            Simuler 1 cycle
+          <Button
+            variant={activeTab === "graph" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setActiveTab("graph")}
+          >
+            Graphe Nodal
           </Button>
         </div>
       </header>
 
       <div className="studio-workspace">
         <div className="studio-canvas">
-          <ReactFlow
-            nodes={flowNodes}
-            edges={flowEdges}
-            onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-            fitView
-          >
-            <Background color="#1e293b" gap={16} />
-            <Controls />
-          </ReactFlow>
+          {activeTab === "game" ? (
+            <RogueGameView
+              world={simulatedWorld}
+              tickCount={ticksCount}
+              onTick={handleTick}
+              onReset={handleReset}
+            />
+          ) : (
+            <NodalCanvas nodes={flowNodes} edges={flowEdges} onNodeClick={setSelectedNodeId} />
+          )}
         </div>
 
-        <aside className="studio-inspector">
-          <div className="inspector-section">
-            <h3>Nœud sélectionné</h3>
-            <div className="tabular" style={{ color: "#38bdf8", fontWeight: 600 }}>
-              {selectedNodeId ?? "Aucun nœud sélectionné (cliquez sur un nœud)"}
-            </div>
-          </div>
-
-          <div className="inspector-section">
-            <h3>Métriques du projet</h3>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <InspectorRow label="Entités" value={project.entities.length} />
-              <InspectorRow label="Composants" value={project.components.length} />
-              <InspectorRow label="Règles" value={project.rules.length} />
-              <InspectorRow label="Cycles joués" value={ticksCount} />
-            </div>
-          </div>
-
-          <div className="inspector-section">
-            <h3>État de simulation (WorldState)</h3>
-            <pre className="tabular">
-              {JSON.stringify(simulatedWorld ?? project.entities, null, 2)}
-            </pre>
-          </div>
-        </aside>
+        <InspectorPanel
+          selectedNodeId={selectedNodeId}
+          project={project}
+          ticksCount={ticksCount}
+          simulatedWorld={simulatedWorld}
+          onSaveSlot={handleSaveSlot}
+          onLoadSlot={handleLoadSlot}
+          hasSavedSlot={hasSavedSlot}
+        />
       </div>
 
       <footer className="status-bar">
@@ -199,3 +214,15 @@ function getNodeStyle(type: string): React.CSSProperties {
       return base;
   }
 }
+
+const selectStyle: React.CSSProperties = {
+  backgroundColor: "#161b22",
+  color: "#f0f6fc",
+  border: "1px solid #30363d",
+  borderRadius: "4px",
+  padding: "4px 8px",
+  fontSize: "12px",
+  fontWeight: 600,
+  outline: "none",
+  cursor: "pointer",
+};

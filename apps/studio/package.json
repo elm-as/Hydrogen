@@ -14,6 +14,7 @@
     "@hydrogen/bindings": "workspace:*",
     "@hydrogen/editor-core": "workspace:*",
     "@hydrogen/ui-kit": "workspace:*",
+    "@hydrogen/wasm-core": "workspace:*",
     "@tauri-apps/api": "^2.2.0",
     "@xyflow/react": "^12.4.4",
     "react": "^19.0.0",
