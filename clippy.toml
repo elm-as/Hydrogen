@@ -1,0 +1,4 @@
+# Aligne Clippy sur la règle ELMAS.md : 3 paramètres maximum par fonction
+too-many-arguments-threshold = 3
+cognitive-complexity-threshold = 15
+too-many-lines-threshold = 60

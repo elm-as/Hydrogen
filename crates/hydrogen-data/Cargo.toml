@@ -1,0 +1,17 @@
+[package]
+name = "hydrogen-data"
+description = "Couche de persistance et de sauvegarde (traits et adaptateurs) pour Hydrogen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+hydrogen-core.workspace = true
+hydrogen-schema.workspace = true
+hydrogen-runtime.workspace = true
+
+[lints]
+workspace = true

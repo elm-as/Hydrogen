@@ -1,0 +1,55 @@
+name: Hydrogen CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality-and-ts:
+    name: Quality Gate (350 lines) & TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify max 350 lines per file (ELMAS.md)
+        run: pnpm check:lines
+      - name: Biome lint & format check + TypeScript strict typecheck
+        run: pnpm check:ts
+      - name: Run Vitest unit tests
+        run: pnpm test:ts
+
+  rust:
+    name: Rust Core (Fmt, Clippy, Deny, Nextest, WASM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-nextest & cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest, cargo-deny
+      - name: Check formatting (rustfmt)
+        run: cargo fmt --all -- --check
+      - name: Run Clippy (-D warnings)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Audit licenses and advisories (cargo-deny)
+        run: cargo deny check
+      - name: Run tests (cargo-nextest)
+        run: cargo nextest run --workspace --all-features
+      - name: Verify WASM target compilation
+        run: cargo check -p hydrogen-wasm --target wasm32-unknown-unknown --profile wasm-release

@@ -1,0 +1,16 @@
+[package]
+name = "hydrogen-runtime"
+description = "Moteur d'exécution déclaratif des définitions Hydrogen (règles, flux, boucle d'état)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+hydrogen-core.workspace = true
+hydrogen-schema.workspace = true
+
+[lints]
+workspace = true

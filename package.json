@@ -1,0 +1,24 @@
+{
+  "name": "hydrogen-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "check:lines": "node scripts/check-file-length.mjs",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "check:ts": "biome check . && pnpm -r typecheck",
+    "test:ts": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "lefthook": "1.10.10",
+    "typescript": "5.7.3",
+    "vitest": "3.0.5"
+  }
+}

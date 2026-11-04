@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hydrogen-core",
+    "crates/hydrogen-schema",
+    "crates/hydrogen-runtime",
+    "crates/hydrogen-data",
+    "crates/hydrogen-wasm",
+    "crates/hydrogen-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+authors = ["Elmas <elmas@elmascore.dev>"]
+repository = "https://github.com/elmascore/hydrogen"
+
+[workspace.dependencies]
+hydrogen-core = { path = "crates/hydrogen-core" }
+hydrogen-schema = { path = "crates/hydrogen-schema" }
+hydrogen-runtime = { path = "crates/hydrogen-runtime" }
+hydrogen-data = { path = "crates/hydrogen-data" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+ts-rs = "10.1"
+proptest = "1.6"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+
+# Profil dédié pour les builds WebAssembly (priorité à la taille du binaire)
+[profile.wasm-release]
+inherits = "release"
+lto = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,15 @@
+{
+  "name": "@hydrogen/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hydrogen/bindings": "workspace:*",
+    "@hydrogen/editor-core": "workspace:*",
+    "@hydrogen/ui-kit": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}

@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: true
+  commands:
+    file-length:
+      run: pnpm check:lines
+    biome:
+      glob: "*.{ts,tsx,js,mjs,json}"
+      run: pnpm biome check --no-errors-on-unmatched {staged_files}
+    typecheck:
+      glob: "*.{ts,tsx}"
+      run: pnpm -r typecheck
+    rustfmt:
+      glob: "*.rs"
+      run: cargo fmt --all -- --check
+    clippy:
+      glob: "*.{rs,toml}"
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: node scripts/check-commit-msg.mjs {1}
