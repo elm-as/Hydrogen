@@ -11,6 +11,15 @@ repository.workspace = true
 [dependencies]
 hydrogen-core.workspace = true
 hydrogen-schema.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+
+[[bench]]
+name = "tick_benchmark"
+harness = false
 
 [lints]
 workspace = true

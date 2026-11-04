@@ -34,6 +34,10 @@ test-ts:
 # Lance toute la suite de tests du monorepo
 test: test-rust test-ts
 
+# Lance les benchmarks Criterion sur le runtime
+bench:
+    cargo bench -p hydrogen-runtime
+
 # Formate l'ensemble du code (Rust + TypeScript)
 fmt:
     cargo fmt --all
