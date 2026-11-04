@@ -132,3 +132,77 @@ fn rogue_core_pilot_gameplay_cascade_and_time_travel() {
         Some(&ScalarValue::Int(50))
     );
 }
+
+#[test]
+fn rogue_core_dynamic_stat_changes_and_player_actions() {
+    let mut project =
+        ProjectDef::from_json_str(ROGUE_TEMPLATE_JSON).expect("schéma rogue-core valide");
+
+    // Modification dynamique de l'attaque du héros via les données : 15 -> 30 (one-shot du gobelin)
+    let attack_id = hydrogen_core::Identifier::new("attack").expect("id valide");
+    let stats_id = hydrogen_core::Identifier::new("stats").expect("id valide");
+    for entity in &mut project.entities {
+        if entity.id.as_str() == "hero" {
+            if let Some(comp) = entity.components.get_mut(&stats_id) {
+                comp.insert(attack_id.clone(), ScalarValue::Int(30));
+            }
+        }
+    }
+
+    let mut runtime =
+        Runtime::new(project, RuntimeConfig::default()).expect("initialisation runtime");
+
+    let goblin_hp = address("goblin", "health", "current");
+    let goblin_alive = address("goblin", "stats", "is_alive");
+    let hero_gold = address("hero", "inventory", "gold");
+    let hero_potions = address("hero", "inventory", "potions");
+    let hero_hp = address("hero", "health", "current");
+
+    // Cycle 1 avec attaque=30 : dégâts = 30 - 0 = 30 -> PV = 0 en un seul tour !
+    let report_1 = runtime.tick().expect("tick 1");
+    assert_eq!(report_1.rules_executed, 4); // tick + attack + death + reward
+    assert_eq!(
+        runtime.world().read_entity_field(&goblin_hp),
+        Some(&ScalarValue::Int(0))
+    );
+    assert_eq!(
+        runtime.world().read_entity_field(&goblin_alive),
+        Some(&ScalarValue::Bool(false))
+    );
+    assert_eq!(
+        runtime.world().read_entity_field(&hero_gold),
+        Some(&ScalarValue::Int(50))
+    );
+
+    // Test de l'action joueur : boire une potion
+    // On blesse d'abord le héros à 50 PV
+    let hp_id = hydrogen_core::Identifier::new("current").expect("id valide");
+    let health_id = hydrogen_core::Identifier::new("health").expect("id valide");
+    let hero_id = hydrogen_core::Identifier::new("hero").expect("id valide");
+    let mut wounded_world = runtime.world().clone();
+    if let Some(entity) = wounded_world.entities.get_mut(&hero_id) {
+        if let Some(comp) = entity.components.get_mut(&health_id) {
+            comp.insert(hp_id, ScalarValue::Int(50));
+        }
+    }
+    runtime.restore_world_state(wounded_world, runtime.tick_count());
+
+    // Déclenchement de l'événement joueur `player_drink_potion`
+    runtime.publish_event(hydrogen_core::RuntimeEvent::new(
+        hydrogen_core::Identifier::new("player_drink_potion").expect("event id"),
+    ));
+
+    // Exécution du tick traitant l'action joueur
+    let potion_report = runtime.tick().expect("tick potion");
+    assert!(potion_report.rules_executed >= 1);
+    // Potions passent de 2 à 1
+    assert_eq!(
+        runtime.world().read_entity_field(&hero_potions),
+        Some(&ScalarValue::Int(1))
+    );
+    // PV passent de 50 à 50 + 30 = 80
+    assert_eq!(
+        runtime.world().read_entity_field(&hero_hp),
+        Some(&ScalarValue::Int(80))
+    );
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": {
     "major": 0,
-    "minor": 1,
+    "minor": 2,
     "patch": 0
   },
   "project_id": "rogue_core",
@@ -40,7 +40,7 @@
           "kind": "int",
           "default_value": {
             "kind": "int",
-            "data": 2
+            "data": 0
           }
         },
         "is_alive": {
@@ -151,7 +151,7 @@
           },
           "defense": {
             "kind": "int",
-            "data": 1
+            "data": 0
           },
           "is_alive": {
             "kind": "bool",
@@ -179,18 +179,32 @@
   "events": [
     {
       "id": "turn_advance",
+      "source": "internal",
       "payload_fields": {}
     },
     {
       "id": "hero_attack",
+      "source": "internal",
       "payload_fields": {}
     },
     {
       "id": "goblin_defeated",
+      "source": "internal",
       "payload_fields": {}
     },
     {
       "id": "loot_collected",
+      "source": "internal",
+      "payload_fields": {}
+    },
+    {
+      "id": "player_attack",
+      "source": "player",
+      "payload_fields": {}
+    },
+    {
+      "id": "player_drink_potion",
+      "source": "player",
       "payload_fields": {}
     }
   ],
@@ -222,6 +236,32 @@
       ]
     },
     {
+      "id": "rule_player_attack",
+      "trigger": {
+        "kind": "on_event",
+        "event_id": "player_attack"
+      },
+      "condition": {
+        "target": {
+          "entity_id": "goblin",
+          "component_id": "stats",
+          "field_id": "is_alive"
+        },
+        "operator": "equal",
+        "expected": {
+          "kind": "bool",
+          "data": true
+        }
+      },
+      "actions": [
+        {
+          "kind": "emit_event",
+          "event_id": "turn_advance",
+          "payload": {}
+        }
+      ]
+    },
+    {
       "id": "rule_hero_attack_on_turn",
       "trigger": {
         "kind": "on_event",
@@ -241,15 +281,52 @@
       },
       "actions": [
         {
-          "kind": "add_numeric",
+          "kind": "set_field",
           "target": {
             "entity_id": "goblin",
             "component_id": "health",
             "field_id": "current"
           },
-          "delta": {
-            "kind": "int",
-            "data": -15
+          "value": {
+            "op": "max",
+            "left": {
+              "kind": "int",
+              "data": 0
+            },
+            "right": {
+              "op": "sub",
+              "left": {
+                "field": {
+                  "entity_id": "goblin",
+                  "component_id": "health",
+                  "field_id": "current"
+                }
+              },
+              "right": {
+                "op": "max",
+                "left": {
+                  "kind": "int",
+                  "data": 1
+                },
+                "right": {
+                  "op": "sub",
+                  "left": {
+                    "field": {
+                      "entity_id": "hero",
+                      "component_id": "stats",
+                      "field_id": "attack"
+                    }
+                  },
+                  "right": {
+                    "field": {
+                      "entity_id": "goblin",
+                      "component_id": "stats",
+                      "field_id": "defense"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         {
@@ -321,6 +398,71 @@
           "kind": "emit_event",
           "event_id": "loot_collected",
           "payload": {}
+        }
+      ]
+    },
+    {
+      "id": "rule_player_drink_potion",
+      "trigger": {
+        "kind": "on_event",
+        "event_id": "player_drink_potion"
+      },
+      "condition": {
+        "target": {
+          "entity_id": "hero",
+          "component_id": "inventory",
+          "field_id": "potions"
+        },
+        "operator": "greater_or_equal",
+        "expected": {
+          "kind": "int",
+          "data": 1
+        }
+      },
+      "actions": [
+        {
+          "kind": "add_numeric",
+          "target": {
+            "entity_id": "hero",
+            "component_id": "inventory",
+            "field_id": "potions"
+          },
+          "delta": {
+            "kind": "int",
+            "data": -1
+          }
+        },
+        {
+          "kind": "set_field",
+          "target": {
+            "entity_id": "hero",
+            "component_id": "health",
+            "field_id": "current"
+          },
+          "value": {
+            "op": "min",
+            "left": {
+              "field": {
+                "entity_id": "hero",
+                "component_id": "health",
+                "field_id": "max"
+              }
+            },
+            "right": {
+              "op": "add",
+              "left": {
+                "field": {
+                  "entity_id": "hero",
+                  "component_id": "health",
+                  "field_id": "current"
+                }
+              },
+              "right": {
+                "kind": "int",
+                "data": 30
+              }
+            }
+          }
         }
       ]
     }
