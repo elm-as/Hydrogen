@@ -7,6 +7,7 @@ members = [
     "crates/hydrogen-data",
     "crates/hydrogen-wasm",
     "crates/hydrogen-cli",
+    "apps/studio/src-tauri",
 ]
 
 [workspace.package]
@@ -31,6 +32,8 @@ criterion = { version = "0.5", default-features = false }
 clap = { version = "4.5", features = ["derive"] }
 tempfile = "3.17"
 wasm-bindgen = "0.2"
+tauri = { version = "2", default-features = false, features = ["wry"] }
+tauri-build = { version = "2", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

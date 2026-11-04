@@ -1,0 +1,24 @@
+[package]
+name = "hydrogen-studio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Éditeur visuel de bureau pour Hydrogen (Tauri v2)"
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+hydrogen-core.workspace = true
+hydrogen-schema.workspace = true
+hydrogen-runtime.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri.workspace = true
+
+[lints]
+workspace = true
+

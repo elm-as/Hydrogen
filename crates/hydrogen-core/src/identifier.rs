@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::error::CoreError;
@@ -10,22 +10,10 @@ use crate::error::CoreError;
 const MAX_IDENTIFIER_LENGTH: usize = 64;
 
 /// Identifiant canonique immuable respectant le motif `[a-z][a-z0-9_]{0,63}`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[serde(try_from = "String", into = "String")]
 #[ts(type = "string")]
 pub struct Identifier(String);
-
-impl Serialize for Identifier {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for Identifier {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = String::deserialize(deserializer)?;
-        Self::new(raw).map_err(serde::de::Error::custom)
-    }
-}
 
 impl Identifier {
     /// Crée et valide un nouvel identifiant métier.

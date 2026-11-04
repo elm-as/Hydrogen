@@ -60,7 +60,7 @@ impl WorldState {
         self.entities.insert(entity.id.clone(), entity);
     }
 
-    /// Lit la valeur d'un champ à l'adresse donnée (`entité.composant.champ`).
+    /// Lit la valeur d'un champ à l'adresse ciblée (`entité.composant.champ`).
     pub fn read_entity_field(&self, target: &FieldAddress) -> Option<&ScalarValue> {
         self.entities
             .get(&target.entity_id)
