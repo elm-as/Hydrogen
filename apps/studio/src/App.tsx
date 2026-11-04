@@ -1,5 +1,6 @@
 import type { ProjectDef, WorldState } from "@hydrogen/bindings";
 import { projectDefToGraph, updateEntityComponentField } from "@hydrogen/editor-core";
+import { Badge, Button, InspectorRow } from "@hydrogen/ui-kit";
 import { Background, Controls, type Node, ReactFlow } from "@xyflow/react";
 import { useMemo, useState } from "react";
 import "./style.css";
@@ -115,15 +116,15 @@ export function App() {
       <header className="studio-topbar">
         <div className="studio-title">
           <span>Hydrogen Studio</span>
-          <span className="studio-badge tabular">v0.1.0 (Tauri v2 + React)</span>
+          <Badge variant="accent">v0.1.0 (Tauri v2 + React)</Badge>
         </div>
         <div className="studio-actions">
-          <button type="button" onClick={handleIncrementInitial}>
+          <Button variant="secondary" onClick={handleIncrementInitial}>
             Modifier héros (+5)
-          </button>
-          <button type="button" className="primary" onClick={handleSimulateTick}>
+          </Button>
+          <Button variant="primary" onClick={handleSimulateTick}>
             Simuler 1 cycle
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -150,14 +151,11 @@ export function App() {
 
           <div className="inspector-section">
             <h3>Métriques du projet</h3>
-            <div
-              className="tabular"
-              style={{ fontSize: "0.85rem", display: "grid", gap: "0.25rem" }}
-            >
-              <div>Entités : {project.entities.length}</div>
-              <div>Composants : {project.components.length}</div>
-              <div>Règles : {project.rules.length}</div>
-              <div>Cycles joués : {ticksCount}</div>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <InspectorRow label="Entités" value={project.entities.length} />
+              <InspectorRow label="Composants" value={project.components.length} />
+              <InspectorRow label="Règles" value={project.rules.length} />
+              <InspectorRow label="Cycles joués" value={ticksCount} />
             </div>
           </div>
 

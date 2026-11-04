@@ -26,6 +26,11 @@ pub struct SchemaVersion {
 }
 
 impl SchemaVersion {
+    /// Version courante du moteur.
+    pub const fn current() -> Self {
+        CURRENT_SCHEMA_VERSION
+    }
+
     /// Crée une version de schéma explicite.
     pub const fn new(major: u16, minor: u16, patch: u16) -> Self {
         Self {
