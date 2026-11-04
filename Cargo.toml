@@ -28,6 +28,8 @@ thiserror = "2.0"
 ts-rs = "10.1"
 proptest = "1.6"
 criterion = { version = "0.5", default-features = false }
+clap = { version = "4.5", features = ["derive"] }
+tempfile = "3.17"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

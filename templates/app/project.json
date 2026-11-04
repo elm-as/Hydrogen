@@ -1,0 +1,70 @@
+{
+  "schema_version": {
+    "major": 0,
+    "minor": 1,
+    "patch": 0
+  },
+  "project_id": "sample_app",
+  "display_name": "Sample Hydrogen Application",
+  "components": [
+    {
+      "id": "counter",
+      "fields": {
+        "value": {
+          "kind": "int",
+          "default_value": {
+            "kind": "int",
+            "data": 0
+          }
+        }
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "app_state",
+      "components": {
+        "counter": {
+          "value": {
+            "kind": "int",
+            "data": 0
+          }
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "step_completed",
+      "payload_fields": {}
+    }
+  ],
+  "rules": [
+    {
+      "id": "increment_counter",
+      "trigger": {
+        "kind": "on_tick"
+      },
+      "condition": null,
+      "actions": [
+        {
+          "kind": "add_numeric",
+          "target": {
+            "entity_id": "app_state",
+            "component_id": "counter",
+            "field_id": "value"
+          },
+          "delta": {
+            "kind": "int",
+            "data": 1
+          }
+        },
+        {
+          "kind": "emit_event",
+          "event_id": "step_completed",
+          "payload": {}
+        }
+      ]
+    }
+  ]
+}
