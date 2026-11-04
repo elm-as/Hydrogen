@@ -102,6 +102,13 @@ impl Runtime {
     pub const fn tick_count(&self) -> u64 {
         self.tick_count
     }
+
+    /// Restaure l'état du monde et le compteur de cycles (ex. depuis une sauvegarde).
+    pub fn restore_world_state(&mut self, world: WorldState, tick_count: u64) {
+        self.world = world;
+        self.tick_count = tick_count;
+        self.event_bus = EventBus::new();
+    }
 }
 
 struct CascadeReport {

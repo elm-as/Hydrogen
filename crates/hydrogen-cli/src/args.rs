@@ -25,6 +25,10 @@ pub enum Commands {
     New {
         /// Chemin du dossier cible à créer ou initialiser.
         path: PathBuf,
+
+        /// Modèle de départ ('app' ou 'game').
+        #[arg(short, long, default_value = "app")]
+        template: String,
     },
 
     /// Valide la syntaxe et la sémantique d'un fichier de définition de projet.

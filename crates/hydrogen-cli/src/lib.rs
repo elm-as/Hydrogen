@@ -13,7 +13,7 @@ pub use error::CliError;
 /// Retourne [`CliError`] avec son code d'erreur associé en cas d'échec de la commande.
 pub fn run_cli(args: CliArgs) -> Result<(), CliError> {
     match args.command {
-        Commands::New { path } => commands::execute_new(&path),
+        Commands::New { path, template } => commands::execute_new(&path, &template),
         Commands::Validate { path } => commands::execute_validate(&path),
         Commands::Run { path, ticks } => commands::execute_run(&path, ticks),
     }

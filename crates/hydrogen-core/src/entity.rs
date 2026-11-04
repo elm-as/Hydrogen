@@ -104,3 +104,17 @@ pub struct FieldAddress {
     /// Identifiant du champ ciblé.
     pub field_id: Identifier,
 }
+
+impl FieldAddress {
+    /// Construit une adresse de champ à partir de trois identifiants textuels.
+    ///
+    /// # Errors
+    /// Retourne [`CoreError`] si l'un des trois identifiants est invalide.
+    pub fn from_parts(entity: &str, component: &str, field: &str) -> Result<Self, CoreError> {
+        Ok(Self {
+            entity_id: Identifier::new(entity)?,
+            component_id: Identifier::new(component)?,
+            field_id: Identifier::new(field)?,
+        })
+    }
+}

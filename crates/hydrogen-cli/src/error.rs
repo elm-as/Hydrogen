@@ -36,13 +36,20 @@ pub enum CliError {
         /// Description de l'anomalie.
         reason: String,
     },
+
+    /// Le modèle demandé est inconnu.
+    #[error("template inconnu '{template}' (templates disponibles : 'app', 'game')")]
+    UnknownTemplate {
+        /// Nom du template demandé.
+        template: String,
+    },
 }
 
 impl CliError {
     /// Retourne le code de sortie du processus associé à cette erreur.
     pub const fn exit_code(&self) -> i32 {
         match self {
-            Self::Schema(_) | Self::InvalidProjectFile { .. } => 1,
+            Self::Schema(_) | Self::InvalidProjectFile { .. } | Self::UnknownTemplate { .. } => 1,
             Self::Runtime(_) => 2,
             Self::Io(_) | Self::DirectoryNotEmpty { .. } => 3,
         }

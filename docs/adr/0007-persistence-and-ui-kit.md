@@ -39,3 +39,4 @@ L'étape 7 consolide la plateforme Hydrogen en fournissant deux briques fondamen
 
 - Les simulations Hydrogen peuvent être sauvegardées et rechargées de façon transactionnelle sans risque de corruption partielle de fichier.
 - Le kit UI élimine la duplication des styles de formulaires et d'inspection entre le studio desktop et les futures applications.
+
