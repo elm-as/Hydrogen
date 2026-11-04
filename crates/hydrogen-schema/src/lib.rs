@@ -15,7 +15,7 @@ pub mod version;
 pub use bindings::export_typescript_bindings;
 pub use error::SchemaError;
 pub use expression::{BinaryOperator, ValueExpr, MAX_EXPRESSION_DEPTH};
-pub use model::{ComponentDef, ComponentFieldDef, EntityDef, EventDef};
+pub use model::{ComponentDef, ComponentFieldDef, EntityDef, EventDef, EventSource};
 pub use project::ProjectDef;
 pub use rule::{ComparisonOperator, RuleAction, RuleCondition, RuleDef, RuleTrigger};
 pub use validation::validate_project_def;

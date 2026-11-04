@@ -6,6 +6,17 @@ use hydrogen_core::{ComponentFields, Identifier, ScalarValue, ValueKind};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// Source d'un événement dans le système Hydrogen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum EventSource {
+    /// Événement interne déclenché par une règle ou un sous-système.
+    #[default]
+    Internal,
+    /// Événement interactif déclenché directement par une action du joueur dans l'interface.
+    Player,
+}
+
 /// Définition d'un champ typé au sein d'un schéma de composant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ComponentFieldDef {
@@ -38,6 +49,10 @@ pub struct EntityDef {
 pub struct EventDef {
     /// Identifiant unique de l'événement.
     pub id: Identifier,
+    /// Origine de l'événement : interne ou action directe du joueur.
+    #[serde(default)]
+    pub source: EventSource,
     /// Types attendus pour la charge utile de l'événement (`id_champ -> type`).
+    #[serde(default)]
     pub payload_fields: BTreeMap<Identifier, ValueKind>,
 }

@@ -15,8 +15,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
 use hydrogen_runtime::{Runtime, RuntimeConfig};
 use hydrogen_schema::{
-    BinaryOperator, ComponentDef, ComponentFieldDef, EntityDef, EventDef, ProjectDef, RuleAction,
-    RuleDef, RuleTrigger, ValueExpr, CURRENT_SCHEMA_VERSION,
+    BinaryOperator, ComponentDef, ComponentFieldDef, EntityDef, EventDef, EventSource, ProjectDef,
+    RuleAction, RuleDef, RuleTrigger, ValueExpr, CURRENT_SCHEMA_VERSION,
 };
 
 fn id(raw: &str) -> Identifier {
@@ -110,6 +110,7 @@ fn create_cascade_project(depth: usize) -> ProjectDef {
         let evt_id = id(&format!("step_{i}"));
         events.push(EventDef {
             id: evt_id.clone(),
+            source: EventSource::Internal,
             payload_fields: BTreeMap::new(),
         });
 

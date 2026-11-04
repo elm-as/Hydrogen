@@ -31,6 +31,7 @@ describe("@hydrogen/bindings generated types", () => {
       events: [
         {
           id: "threshold_reached",
+          source: "internal",
           payload_fields: {},
         },
       ],

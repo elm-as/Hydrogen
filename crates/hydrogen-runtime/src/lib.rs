@@ -29,8 +29,8 @@ mod tests {
 
     use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
     use hydrogen_schema::{
-        ComparisonOperator, ComponentDef, ComponentFieldDef, EntityDef, EventDef, ProjectDef,
-        RuleAction, RuleCondition, RuleDef, RuleTrigger, CURRENT_SCHEMA_VERSION,
+        ComparisonOperator, ComponentDef, ComponentFieldDef, EntityDef, EventDef, EventSource,
+        ProjectDef, RuleAction, RuleCondition, RuleDef, RuleTrigger, CURRENT_SCHEMA_VERSION,
     };
 
     use super::*;
@@ -79,6 +79,7 @@ mod tests {
             }],
             events: vec![EventDef {
                 id: event_id.clone(),
+                source: EventSource::Internal,
                 payload_fields: BTreeMap::new(),
             }],
             rules: vec![

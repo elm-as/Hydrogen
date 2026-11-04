@@ -8,6 +8,7 @@ export type { ComponentFieldDef } from "./generated/ComponentFieldDef.js";
 export type { EntityDef } from "./generated/EntityDef.js";
 export type { EntityState } from "./generated/EntityState.js";
 export type { EventDef } from "./generated/EventDef.js";
+export type { EventSource } from "./generated/EventSource.js";
 export type { FieldAddress } from "./generated/FieldAddress.js";
 export type { Identifier } from "./generated/Identifier.js";
 export type { ProjectDef } from "./generated/ProjectDef.js";

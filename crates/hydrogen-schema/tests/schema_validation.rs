@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
 use hydrogen_schema::{
     export_typescript_bindings, BinaryOperator, ComparisonOperator, ComponentDef,
-    ComponentFieldDef, EntityDef, EventDef, ProjectDef, RuleAction, RuleCondition, RuleDef,
-    RuleTrigger, SchemaError, SchemaVersion, ValueExpr, CURRENT_SCHEMA_VERSION,
+    ComponentFieldDef, EntityDef, EventDef, EventSource, ProjectDef, RuleAction, RuleCondition,
+    RuleDef, RuleTrigger, SchemaError, SchemaVersion, ValueExpr, CURRENT_SCHEMA_VERSION,
     MAX_EXPRESSION_DEPTH,
 };
 use proptest::prelude::*;
@@ -74,6 +74,7 @@ fn build_sample_project(initial_counter: i64, step_delta: i64) -> Result<Project
         entities: vec![entity],
         events: vec![EventDef {
             id: event_id.clone(),
+            source: EventSource::Internal,
             payload_fields: BTreeMap::new(),
         }],
         rules: vec![RuleDef {

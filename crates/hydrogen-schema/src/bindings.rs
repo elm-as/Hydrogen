@@ -9,7 +9,7 @@ use ts_rs::TS;
 
 use crate::error::SchemaError;
 use crate::expression::{BinaryOperator, ValueExpr};
-use crate::model::{ComponentDef, ComponentFieldDef, EntityDef, EventDef};
+use crate::model::{ComponentDef, ComponentFieldDef, EntityDef, EventDef, EventSource};
 use crate::project::ProjectDef;
 use crate::rule::{ComparisonOperator, RuleAction, RuleCondition, RuleDef, RuleTrigger};
 use crate::version::SchemaVersion;
@@ -34,6 +34,7 @@ pub fn export_typescript_bindings(output_dir: &Path) -> Result<(), SchemaError> 
     ComponentFieldDef::export_all_to(output_dir).map_err(map_err)?;
     ComponentDef::export_all_to(output_dir).map_err(map_err)?;
     EntityDef::export_all_to(output_dir).map_err(map_err)?;
+    EventSource::export_all_to(output_dir).map_err(map_err)?;
     EventDef::export_all_to(output_dir).map_err(map_err)?;
     BinaryOperator::export_all_to(output_dir).map_err(map_err)?;
     ValueExpr::export_all_to(output_dir).map_err(map_err)?;

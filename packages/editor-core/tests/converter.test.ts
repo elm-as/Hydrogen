@@ -30,6 +30,7 @@ const SAMPLE_PROJECT: ProjectDef = {
   events: [
     {
       id: "game_over",
+      source: "internal",
       payload_fields: {},
     },
   ],

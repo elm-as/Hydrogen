@@ -1,7 +1,9 @@
 //! Bindings WebAssembly du moteur déclaratif Hydrogen (`hydrogen-wasm`).
 //! Expose `WasmRuntime` pour exécuter les projets directement dans le navigateur via `wasm-bindgen`.
 
-use hydrogen_core::RuntimeEvent;
+use std::collections::BTreeMap;
+
+use hydrogen_core::{Identifier, RuntimeEvent, WorldState};
 use hydrogen_runtime::{Runtime, RuntimeConfig};
 use hydrogen_schema::ProjectDef;
 use wasm_bindgen::prelude::*;
@@ -49,6 +51,40 @@ impl WasmRuntime {
             serde_json::from_str(event_json).map_err(|err| err.to_string())?;
 
         self.inner.publish_event(event);
+        Ok(())
+    }
+
+    /// Publie un événement par son identifiant avec charge utile JSON optionnelle.
+    ///
+    /// # Errors
+    /// Retourne une erreur si l'identifiant est non conforme ou le JSON invalide.
+    #[wasm_bindgen]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn publish_event_by_id(
+        &mut self,
+        event_id: &str,
+        payload_json: Option<String>,
+    ) -> Result<(), String> {
+        let id = Identifier::new(event_id).map_err(|err| err.to_string())?;
+        let payload = match payload_json {
+            Some(ref json) if !json.trim().is_empty() => {
+                serde_json::from_str(json).map_err(|err| err.to_string())?
+            }
+            _ => BTreeMap::new(),
+        };
+        self.inner
+            .publish_event(RuntimeEvent::with_payload(id, payload));
+        Ok(())
+    }
+
+    /// Restaure l'état complet du monde et le compteur de cycles depuis une chaîne JSON.
+    ///
+    /// # Errors
+    /// Retourne une erreur si la désérialisation de l'état du monde échoue.
+    #[wasm_bindgen]
+    pub fn restore_world_state(&mut self, world_json: &str, tick_count: u64) -> Result<(), String> {
+        let world: WorldState = serde_json::from_str(world_json).map_err(|err| err.to_string())?;
+        self.inner.restore_world_state(world, tick_count);
         Ok(())
     }
 

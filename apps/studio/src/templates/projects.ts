@@ -28,6 +28,7 @@ export const COUNTER_PROJECT: ProjectDef = {
   events: [
     {
       id: "threshold_reached",
+      source: "internal",
       payload_fields: {},
     },
   ],
@@ -126,10 +127,10 @@ export const ROGUE_PROJECT: ProjectDef = {
     },
   ],
   events: [
-    { id: "turn_advance", payload_fields: {} },
-    { id: "hero_attack", payload_fields: {} },
-    { id: "goblin_defeated", payload_fields: {} },
-    { id: "loot_collected", payload_fields: {} },
+    { id: "turn_advance", source: "internal", payload_fields: {} },
+    { id: "hero_attack", source: "internal", payload_fields: {} },
+    { id: "goblin_defeated", source: "internal", payload_fields: {} },
+    { id: "loot_collected", source: "internal", payload_fields: {} },
   ],
   rules: [
     {

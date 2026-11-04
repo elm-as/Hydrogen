@@ -29,6 +29,7 @@ const DEFAULT_PROJECT: ProjectDef = {
   events: [
     {
       id: "step_reached",
+      source: "internal",
       payload_fields: {},
     },
   ],
