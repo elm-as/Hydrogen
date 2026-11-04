@@ -1,6 +1,6 @@
 //! Orchestrateur central d'exécution déclarative (`Runtime`).
 
-use hydrogen_core::{EventBus, RuntimeEvent, WorldState};
+use hydrogen_core::{EventBus, Identifier, RuntimeEvent, WorldState};
 use hydrogen_schema::{ProjectDef, RuleDef, RuleTrigger};
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ use crate::error::RuntimeError;
 use crate::world_builder::build_initial_world;
 
 /// Résumé métrique d'un cycle d'exécution (`tick`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TickReport {
     /// Numéro séquentiel du cycle (commence à 1).
     pub tick_index: u64,
@@ -19,6 +19,8 @@ pub struct TickReport {
     pub rules_executed: usize,
     /// Nombre d'événements traités durant ce cycle.
     pub events_processed: usize,
+    /// Identifiants des événements émis durant ce cycle.
+    pub emitted_events: Vec<Identifier>,
 }
 
 /// Moteur d'exécution autonome Hydrogen.
@@ -54,18 +56,29 @@ impl Runtime {
     pub fn tick(&mut self) -> Result<TickReport, RuntimeError> {
         let mut working_world = self.world.clone();
         let mut working_bus = self.event_bus.clone();
+        let mut emitted_events = Vec::new();
 
-        let rules_on_tick =
-            execute_tick_rules(&self.project.rules, &mut working_world, &mut working_bus)?;
-
-        let cascade_result = drain_events(
-            &self.project.rules,
-            &mut StepContext {
+        let rules_on_tick = {
+            let mut ctx = ExecutionContext {
                 world: &mut working_world,
                 bus: &mut working_bus,
-                max_events: self.config.max_events_per_tick,
-            },
-        )?;
+                emitted_events: &mut emitted_events,
+            };
+            execute_tick_rules(&self.project.rules, &mut ctx)?
+        };
+
+        let cascade_result = {
+            let mut ctx = ExecutionContext {
+                world: &mut working_world,
+                bus: &mut working_bus,
+                emitted_events: &mut emitted_events,
+            };
+            drain_events(
+                &self.project.rules,
+                self.config.max_events_per_tick,
+                &mut ctx,
+            )?
+        };
 
         self.world = working_world;
         self.event_bus = working_bus;
@@ -75,6 +88,7 @@ impl Runtime {
             tick_index: self.tick_count,
             rules_executed: rules_on_tick + cascade_result.rules_executed,
             events_processed: cascade_result.events_processed,
+            emitted_events,
         })
     }
 
@@ -116,16 +130,15 @@ struct CascadeReport {
     rules_executed: usize,
 }
 
-struct StepContext<'a> {
+struct ExecutionContext<'a> {
     world: &'a mut WorldState,
     bus: &'a mut EventBus,
-    max_events: usize,
+    emitted_events: &'a mut Vec<Identifier>,
 }
 
 fn execute_tick_rules(
     rules: &[RuleDef],
-    world: &mut WorldState,
-    bus: &mut EventBus,
+    ctx: &mut ExecutionContext<'_>,
 ) -> Result<usize, RuntimeError> {
     let mut executed = 0;
     for rule in rules {
@@ -133,11 +146,11 @@ fn execute_tick_rules(
             continue;
         }
 
-        if !is_condition_met(rule, world) {
+        if !is_condition_met(rule, ctx.world)? {
             continue;
         }
 
-        apply_rule_actions(rule, world, bus)?;
+        apply_rule_actions(rule, ctx)?;
         executed += 1;
     }
     Ok(executed)
@@ -145,17 +158,16 @@ fn execute_tick_rules(
 
 fn drain_events(
     rules: &[RuleDef],
-    context: &mut StepContext<'_>,
+    max_events: usize,
+    ctx: &mut ExecutionContext<'_>,
 ) -> Result<CascadeReport, RuntimeError> {
     let mut events_count = 0;
     let mut rules_count = 0;
 
-    while let Some(event) = context.bus.pop_next() {
+    while let Some(event) = ctx.bus.pop_next() {
         events_count += 1;
-        if events_count > context.max_events {
-            return Err(RuntimeError::EventLoopLimitExceeded {
-                limit: context.max_events,
-            });
+        if events_count > max_events {
+            return Err(RuntimeError::EventLoopLimitExceeded { limit: max_events });
         }
 
         for rule in rules {
@@ -163,11 +175,11 @@ fn drain_events(
                 continue;
             }
 
-            if !is_condition_met(rule, context.world) {
+            if !is_condition_met(rule, ctx.world)? {
                 continue;
             }
 
-            apply_rule_actions(rule, context.world, context.bus)?;
+            apply_rule_actions(rule, ctx)?;
             rules_count += 1;
         }
     }
@@ -178,19 +190,17 @@ fn drain_events(
     })
 }
 
-fn is_condition_met(rule: &RuleDef, world: &WorldState) -> bool {
+fn is_condition_met(rule: &RuleDef, world: &WorldState) -> Result<bool, RuntimeError> {
     rule.condition
         .as_ref()
-        .map_or(true, |cond| evaluate_condition(cond, world))
+        .map_or(Ok(true), |cond| evaluate_condition(cond, world))
 }
 
-fn apply_rule_actions(
-    rule: &RuleDef,
-    world: &mut WorldState,
-    bus: &mut EventBus,
-) -> Result<(), RuntimeError> {
+fn apply_rule_actions(rule: &RuleDef, ctx: &mut ExecutionContext<'_>) -> Result<(), RuntimeError> {
     for action in &rule.actions {
-        apply_action(action, world, bus)?;
+        if let Some(event_id) = apply_action(action, ctx.world, ctx.bus)? {
+            ctx.emitted_events.push(event_id);
+        }
     }
     Ok(())
 }

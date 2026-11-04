@@ -15,11 +15,20 @@ pub enum RuntimeError {
     #[error("erreur schéma : {0}")]
     Schema(#[from] SchemaError),
 
-    /// Dépassement arithmétique lors d'une opération `AddNumeric`.
+    /// Dépassement arithmétique lors d'un calcul d'expression ou d'une opération `AddNumeric`.
     #[error("dépassement arithmétique sur le champ '{target}'")]
     ArithmeticOverflow {
-        /// Adresse du champ concerné.
+        /// Adresse ou contexte du calcul concerné.
         target: String,
+    },
+
+    /// Opération arithmétique impossible sur des types non numériques incompatibles.
+    #[error("opération arithmétique invalide ({operation}) sur types : {types}")]
+    InvalidNumericOperation {
+        /// Opération tentée.
+        operation: String,
+        /// Description des types reçus.
+        types: String,
     },
 
     /// Boucle d'événements infinie détectée (dépassement du quota par tick).

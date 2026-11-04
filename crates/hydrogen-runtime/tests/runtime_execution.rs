@@ -12,8 +12,8 @@ use std::collections::BTreeMap;
 use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
 use hydrogen_runtime::{Runtime, RuntimeConfig, RuntimeError};
 use hydrogen_schema::{
-    ComponentDef, ComponentFieldDef, EntityDef, ProjectDef, RuleAction, RuleDef, RuleTrigger,
-    CURRENT_SCHEMA_VERSION,
+    BinaryOperator, ComponentDef, ComponentFieldDef, EntityDef, ProjectDef, RuleAction, RuleDef,
+    RuleTrigger, ValueExpr, CURRENT_SCHEMA_VERSION,
 };
 use proptest::prelude::*;
 
@@ -65,7 +65,7 @@ fn build_math_project(initial: i64, delta: i64) -> ProjectDef {
             condition: None,
             actions: vec![RuleAction::AddNumeric {
                 target,
-                delta: ScalarValue::Int(delta),
+                delta: ScalarValue::Int(delta).into(),
             }],
         }],
     }
@@ -92,6 +92,58 @@ fn arithmetic_overflow_rolls_back_without_panic() {
         Some(&ScalarValue::Int(i64::MAX))
     );
     assert_eq!(runtime.tick_count(), 0);
+}
+
+#[test]
+fn expression_evaluation_computes_dynamic_formula_in_runtime() {
+    let mut project = build_math_project(50, 0);
+    let target = FieldAddress {
+        entity_id: id("calculator"),
+        component_id: id("math"),
+        field_id: id("val"),
+    };
+
+    // Formule : min(100, current + 25)
+    project.rules[0].actions = vec![RuleAction::SetField {
+        target: target.clone(),
+        value: ValueExpr::Binary {
+            op: BinaryOperator::Min,
+            left: Box::new(ValueExpr::Literal(ScalarValue::Int(100))),
+            right: Box::new(ValueExpr::Binary {
+                op: BinaryOperator::Add,
+                left: Box::new(ValueExpr::Field {
+                    field: target.clone(),
+                }),
+                right: Box::new(ValueExpr::Literal(ScalarValue::Int(25))),
+            }),
+        },
+    }];
+
+    let mut runtime =
+        Runtime::new(project, RuntimeConfig::default()).expect("initialisation runtime");
+
+    // Tick 1 : 50 -> min(100, 50 + 25) = 75
+    let report_1 = runtime.tick().expect("tick 1 valide");
+    assert_eq!(report_1.rules_executed, 1);
+    assert_eq!(
+        runtime.world().read_entity_field(&target),
+        Some(&ScalarValue::Int(75))
+    );
+
+    // Tick 2 : 75 -> min(100, 75 + 25) = 100
+    let report_2 = runtime.tick().expect("tick 2 valide");
+    assert_eq!(report_2.rules_executed, 1);
+    assert_eq!(
+        runtime.world().read_entity_field(&target),
+        Some(&ScalarValue::Int(100))
+    );
+
+    // Tick 3 : 100 -> min(100, 100 + 25) = 100 (plafond atteint)
+    runtime.tick().expect("tick 3 valide");
+    assert_eq!(
+        runtime.world().read_entity_field(&target),
+        Some(&ScalarValue::Int(100))
+    );
 }
 
 proptest! {

@@ -1,11 +1,13 @@
 //! Application des actions déclaratives (`RuleAction`) sur l'état du monde et le bus d'événements.
 
-use hydrogen_core::{EventBus, FieldAddress, RuntimeEvent, ScalarValue, WorldState};
+use hydrogen_core::{EventBus, FieldAddress, Identifier, RuntimeEvent, ScalarValue, WorldState};
 use hydrogen_schema::RuleAction;
 
 use crate::error::RuntimeError;
+use crate::expression::evaluate_expr;
 
 /// Applique une action déclarative sur le monde ou émet un nouvel événement.
+/// Retourne l'identifiant de l'événement émis le cas échéant.
 ///
 /// # Errors
 /// Retourne [`RuntimeError::ArithmeticOverflow`] en cas de débordement de calcul,
@@ -14,18 +16,26 @@ pub fn apply_action(
     action: &RuleAction,
     world: &mut WorldState,
     bus: &mut EventBus,
-) -> Result<(), RuntimeError> {
+) -> Result<Option<Identifier>, RuntimeError> {
     match action {
-        RuleAction::SetField { target, value } => world
-            .write_entity_field(target, value.clone())
-            .map_err(RuntimeError::Core),
-        RuleAction::AddNumeric { target, delta } => apply_add_numeric(target, delta, world),
+        RuleAction::SetField { target, value } => {
+            let computed = evaluate_expr(value, world)?;
+            world
+                .write_entity_field(target, computed)
+                .map_err(RuntimeError::Core)?;
+            Ok(None)
+        }
+        RuleAction::AddNumeric { target, delta } => {
+            let delta_val = evaluate_expr(delta, world)?;
+            apply_add_numeric(target, &delta_val, world)?;
+            Ok(None)
+        }
         RuleAction::EmitEvent { event_id, payload } => {
             bus.publish(RuntimeEvent::with_payload(
                 event_id.clone(),
                 payload.clone(),
             ));
-            Ok(())
+            Ok(Some(event_id.clone()))
         }
     }
 }

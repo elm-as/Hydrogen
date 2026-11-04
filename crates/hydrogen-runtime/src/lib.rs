@@ -6,6 +6,7 @@ pub mod condition;
 pub mod config;
 pub mod engine;
 pub mod error;
+pub mod expression;
 pub mod world_builder;
 
 pub use action::apply_action;
@@ -13,6 +14,7 @@ pub use condition::evaluate_condition;
 pub use config::RuntimeConfig;
 pub use engine::{Runtime, TickReport};
 pub use error::RuntimeError;
+pub use expression::evaluate_expr;
 pub use world_builder::build_initial_world;
 
 #[cfg(test)]
@@ -86,7 +88,7 @@ mod tests {
                     condition: None,
                     actions: vec![RuleAction::AddNumeric {
                         target: target.clone(),
-                        delta: ScalarValue::Int(1),
+                        delta: ScalarValue::Int(1).into(),
                     }],
                 },
                 RuleDef {
@@ -95,7 +97,7 @@ mod tests {
                     condition: Some(RuleCondition {
                         target: target.clone(),
                         operator: ComparisonOperator::Equal,
-                        expected: ScalarValue::Int(50),
+                        expected: ScalarValue::Int(50).into(),
                     }),
                     actions: vec![RuleAction::EmitEvent {
                         event_id: event_id.clone(),
@@ -108,7 +110,7 @@ mod tests {
                     condition: None,
                     actions: vec![RuleAction::AddNumeric {
                         target,
-                        delta: ScalarValue::Int(10),
+                        delta: ScalarValue::Int(10).into(),
                     }],
                 },
             ],
@@ -143,6 +145,7 @@ mod tests {
             runtime.world().read_entity_field(&target),
             Some(&ScalarValue::Int(60))
         );
+        assert_eq!(report_2.emitted_events, vec![id("reached_fifty")]);
     }
 
     #[test]

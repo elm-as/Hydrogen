@@ -1,31 +1,32 @@
-//! Benchmarks Criterion pour mesurer les performances d'un cycle de calcul (`Runtime::tick`).
+//! Benchmarks Criterion pour la cadence d'exécution du runtime et les cascades d'événements.
 
 #![allow(
-    missing_docs,
     clippy::panic,
     clippy::expect_used,
     clippy::too_many_lines,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    missing_docs
 )]
 
 use std::collections::BTreeMap;
+use std::hint::black_box;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
 use hydrogen_runtime::{Runtime, RuntimeConfig};
 use hydrogen_schema::{
-    ComponentDef, ComponentFieldDef, EntityDef, EventDef, ProjectDef, RuleAction, RuleDef,
-    RuleTrigger, CURRENT_SCHEMA_VERSION,
+    BinaryOperator, ComponentDef, ComponentFieldDef, EntityDef, EventDef, ProjectDef, RuleAction,
+    RuleDef, RuleTrigger, ValueExpr, CURRENT_SCHEMA_VERSION,
 };
 
 fn id(raw: &str) -> Identifier {
-    Identifier::new(raw).unwrap_or_else(|_| panic!("identifiant invalide pour bench"))
+    Identifier::new(raw).unwrap_or_else(|_| panic!("identifiant invalide pour benchmark"))
 }
 
 fn create_bench_project(rules_count: usize) -> ProjectDef {
-    let comp_id = id("stats");
-    let field_id = id("score");
-    let entity_id = id("actor");
+    let comp_id = id("counter");
+    let field_id = id("value");
+    let entity_id = id("player");
 
     let mut fields = BTreeMap::new();
     fields.insert(
@@ -55,7 +56,7 @@ fn create_bench_project(rules_count: usize) -> ProjectDef {
             condition: None,
             actions: vec![RuleAction::AddNumeric {
                 target: target.clone(),
-                delta: ScalarValue::Int(1),
+                delta: ScalarValue::Int(1).into(),
             }],
         });
     }
@@ -120,7 +121,7 @@ fn create_cascade_project(depth: usize) -> ProjectDef {
 
         let mut actions = vec![RuleAction::AddNumeric {
             target: target.clone(),
-            delta: ScalarValue::Int(1),
+            delta: ScalarValue::Int(1).into(),
         }];
 
         if i + 1 < depth {
@@ -151,6 +152,71 @@ fn create_cascade_project(depth: usize) -> ProjectDef {
             components: entity_comps,
         }],
         events,
+        rules,
+    }
+}
+
+fn create_expression_project(count: usize) -> ProjectDef {
+    let comp_id = id("math");
+    let field_id = id("val");
+    let entity_id = id("calc");
+
+    let mut fields = BTreeMap::new();
+    fields.insert(
+        field_id.clone(),
+        ComponentFieldDef {
+            kind: ValueKind::Int,
+            default_value: ScalarValue::Int(0),
+        },
+    );
+
+    let mut init = ComponentFields::new();
+    init.insert(field_id.clone(), ScalarValue::Int(10));
+    let mut entity_comps = BTreeMap::new();
+    entity_comps.insert(comp_id.clone(), init);
+
+    let target = FieldAddress {
+        entity_id: entity_id.clone(),
+        component_id: comp_id.clone(),
+        field_id,
+    };
+
+    let mut rules = Vec::with_capacity(count);
+    for i in 0..count {
+        rules.push(RuleDef {
+            id: id(&format!("expr_rule_{i}")),
+            trigger: RuleTrigger::OnTick,
+            condition: None,
+            actions: vec![RuleAction::SetField {
+                target: target.clone(),
+                value: ValueExpr::Binary {
+                    op: BinaryOperator::Min,
+                    left: Box::new(ValueExpr::Literal(ScalarValue::Int(1000))),
+                    right: Box::new(ValueExpr::Binary {
+                        op: BinaryOperator::Add,
+                        left: Box::new(ValueExpr::Field {
+                            field: target.clone(),
+                        }),
+                        right: Box::new(ValueExpr::Literal(ScalarValue::Int(1))),
+                    }),
+                },
+            }],
+        });
+    }
+
+    ProjectDef {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        project_id: id("expr_project"),
+        display_name: "Expression Project".to_owned(),
+        components: vec![ComponentDef {
+            id: comp_id,
+            fields,
+        }],
+        entities: vec![EntityDef {
+            id: entity_id,
+            components: entity_comps,
+        }],
+        events: vec![],
         rules,
     }
 }
@@ -190,5 +256,25 @@ fn bench_event_cascade(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_tick_scaling, bench_event_cascade);
+fn bench_expression_eval(c: &mut Criterion) {
+    let mut group = c.benchmark_group("runtime_expression_eval");
+
+    for count in [1, 50, 200] {
+        group.bench_with_input(BenchmarkId::new("rules", count), &count, |b, &n| {
+            let project = create_expression_project(n);
+            let mut runtime = Runtime::new(project, RuntimeConfig::default()).expect("init bench");
+            b.iter(|| {
+                black_box(runtime.tick().expect("expr bench"));
+            });
+        });
+    }
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_tick_scaling,
+    bench_event_cascade,
+    bench_expression_eval
+);
 criterion_main!(benches);
