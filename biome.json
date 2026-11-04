@@ -13,7 +13,8 @@
       "target",
       "pnpm-lock.yaml",
       "packages/bindings/src/generated/**",
-      "packages/wasm-core/**"
+      "packages/wasm-core/**",
+      "apps/studio/src-tauri/gen/**"
     ]
   },
   "formatter": {
