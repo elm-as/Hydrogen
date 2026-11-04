@@ -2,19 +2,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use hydrogen_core::{FieldAddress, Identifier, ScalarValue, ValueKind};
+use hydrogen_core::{Identifier, ScalarValue, ValueKind};
 
 use crate::error::SchemaError;
+use crate::expression_validation::{ensure_expr_kind, is_numeric, ExprScope};
 use crate::model::{ComponentDef, EntityDef, EventDef};
 use crate::project::ProjectDef;
 use crate::rule::{ComparisonOperator, RuleAction, RuleCondition, RuleDef, RuleTrigger};
-
-/// Index de résolution rapide construit lors de la validation d'un [`ProjectDef`].
-struct SchemaIndex<'a> {
-    components: BTreeMap<&'a Identifier, &'a ComponentDef>,
-    entities: BTreeMap<&'a Identifier, &'a EntityDef>,
-    events: BTreeMap<&'a Identifier, &'a EventDef>,
-}
+use crate::schema_index::SchemaIndex;
 
 /// Valide intégralement une définition de projet Hydrogen (version, composants, entités, événements, règles).
 ///
@@ -163,8 +158,16 @@ fn validate_condition(
     index: &SchemaIndex<'_>,
 ) -> Result<(), SchemaError> {
     let context = format!("rule '{rule_id}' condition");
-    let field_kind = resolve_field_kind(&condition.target, &context, index)?;
-    validate_scalar_type(&context, field_kind, &condition.expected)?;
+    let field_kind = index.resolve_field_kind(&condition.target, &context)?;
+
+    ensure_expr_kind(
+        field_kind,
+        &condition.expected,
+        &ExprScope {
+            context: &context,
+            index,
+        },
+    )?;
 
     let requires_numeric = matches!(
         condition.operator,
@@ -174,7 +177,7 @@ fn validate_condition(
             | ComparisonOperator::LessOrEqual
     );
 
-    if requires_numeric && !matches!(field_kind, ValueKind::Int | ValueKind::Float) {
+    if requires_numeric && !is_numeric(field_kind) {
         return Err(SchemaError::InvalidNumericOperation {
             target: context,
             actual: field_kind,
@@ -195,20 +198,25 @@ fn validate_action(
     index: &SchemaIndex<'_>,
 ) -> Result<(), SchemaError> {
     let context = format!("rule '{rule_id}' action");
+    let scope = ExprScope {
+        context: &context,
+        index,
+    };
+
     match action {
         RuleAction::SetField { target, value } => {
-            let kind = resolve_field_kind(target, &context, index)?;
-            validate_scalar_type(&context, kind, value)
+            let kind = index.resolve_field_kind(target, &context)?;
+            ensure_expr_kind(kind, value, &scope)
         }
         RuleAction::AddNumeric { target, delta } => {
-            let kind = resolve_field_kind(target, &context, index)?;
-            if !matches!(kind, ValueKind::Int | ValueKind::Float) {
+            let kind = index.resolve_field_kind(target, &context)?;
+            if !is_numeric(kind) {
                 return Err(SchemaError::InvalidNumericOperation {
                     target: context,
                     actual: kind,
                 });
             }
-            validate_scalar_type(&context, kind, delta)
+            ensure_expr_kind(kind, delta, &scope)
         }
         RuleAction::EmitEvent { event_id, payload } => validate_emit_event(
             &EmitEventCheck {
@@ -260,48 +268,6 @@ fn validate_emit_event(
         }
     }
     Ok(())
-}
-
-fn resolve_field_kind(
-    address: &FieldAddress,
-    context: &str,
-    index: &SchemaIndex<'_>,
-) -> Result<ValueKind, SchemaError> {
-    let Some(entity) = index.entities.get(&address.entity_id) else {
-        return Err(SchemaError::UnknownReference {
-            context: context.to_owned(),
-            target: format!("entity '{}'", address.entity_id),
-        });
-    };
-
-    if !entity.components.contains_key(&address.component_id) {
-        return Err(SchemaError::UnknownReference {
-            context: context.to_owned(),
-            target: format!(
-                "component '{}' on entity '{}'",
-                address.component_id, address.entity_id
-            ),
-        });
-    }
-
-    let Some(component_def) = index.components.get(&address.component_id) else {
-        return Err(SchemaError::UnknownReference {
-            context: context.to_owned(),
-            target: format!("component '{}'", address.component_id),
-        });
-    };
-
-    let Some(field_def) = component_def.fields.get(&address.field_id) else {
-        return Err(SchemaError::UnknownReference {
-            context: context.to_owned(),
-            target: format!(
-                "field '{}' on component '{}'",
-                address.field_id, address.component_id
-            ),
-        });
-    };
-
-    Ok(field_def.kind)
 }
 
 fn validate_scalar_type(

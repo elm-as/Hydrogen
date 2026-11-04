@@ -5,9 +5,10 @@ use std::path::PathBuf;
 
 use hydrogen_core::{ComponentFields, FieldAddress, Identifier, ScalarValue, ValueKind};
 use hydrogen_schema::{
-    export_typescript_bindings, ComparisonOperator, ComponentDef, ComponentFieldDef, EntityDef,
-    EventDef, ProjectDef, RuleAction, RuleCondition, RuleDef, RuleTrigger, SchemaError,
-    SchemaVersion, CURRENT_SCHEMA_VERSION,
+    export_typescript_bindings, BinaryOperator, ComparisonOperator, ComponentDef,
+    ComponentFieldDef, EntityDef, EventDef, ProjectDef, RuleAction, RuleCondition, RuleDef,
+    RuleTrigger, SchemaError, SchemaVersion, ValueExpr, CURRENT_SCHEMA_VERSION,
+    MAX_EXPRESSION_DEPTH,
 };
 use proptest::prelude::*;
 
@@ -81,12 +82,12 @@ fn build_sample_project(initial_counter: i64, step_delta: i64) -> Result<Project
             condition: Some(RuleCondition {
                 target: target.clone(),
                 operator: ComparisonOperator::LessThan,
-                expected: ScalarValue::Int(100),
+                expected: ScalarValue::Int(100).into(),
             }),
             actions: vec![
                 RuleAction::AddNumeric {
                     target,
-                    delta: ScalarValue::Int(step_delta),
+                    delta: ScalarValue::Int(step_delta).into(),
                 },
                 RuleAction::EmitEvent {
                     event_id,
@@ -126,6 +127,127 @@ fn validator_rejects_unsupported_version_and_unknown_references() -> Result<(), 
         bad_ref.validate(),
         Err(SchemaError::UnknownReference { .. })
     ));
+    Ok(())
+}
+
+#[test]
+fn expression_field_and_binary_validation() -> Result<(), SchemaError> {
+    let mut project = build_sample_project(0, 1)?;
+    let target = FieldAddress::from_parts("main_counter", "counter", "value").map_err(|e| {
+        SchemaError::JsonFormat {
+            message: e.to_string(),
+        }
+    })?;
+
+    // Condition avec lecture de champ et opération binaire
+    project.rules[0].condition = Some(RuleCondition {
+        target: target.clone(),
+        operator: ComparisonOperator::LessThan,
+        expected: ValueExpr::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(ValueExpr::Field {
+                field: target.clone(),
+            }),
+            right: Box::new(ValueExpr::Literal(ScalarValue::Int(10))),
+        },
+    });
+
+    // Action avec calcul min(100, current + 5)
+    project.rules[0].actions[0] = RuleAction::SetField {
+        target: target.clone(),
+        value: ValueExpr::Binary {
+            op: BinaryOperator::Min,
+            left: Box::new(ValueExpr::Literal(ScalarValue::Int(100))),
+            right: Box::new(ValueExpr::Binary {
+                op: BinaryOperator::Add,
+                left: Box::new(ValueExpr::Field { field: target }),
+                right: Box::new(ValueExpr::Literal(ScalarValue::Int(5))),
+            }),
+        },
+    };
+
+    project.validate()?;
+    Ok(())
+}
+
+#[test]
+fn expression_rejects_type_mismatch_and_excessive_depth() -> Result<(), SchemaError> {
+    let mut project = build_sample_project(0, 1)?;
+    let target = FieldAddress::from_parts("main_counter", "counter", "value").map_err(|e| {
+        SchemaError::JsonFormat {
+            message: e.to_string(),
+        }
+    })?;
+
+    // Type mismatch : additionner un Int avec un Text
+    project.rules[0].actions[0] = RuleAction::SetField {
+        target: target.clone(),
+        value: ValueExpr::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(ValueExpr::Literal(ScalarValue::Int(10))),
+            right: Box::new(ValueExpr::Literal(ScalarValue::Text("error".to_owned()))),
+        },
+    };
+
+    assert!(matches!(
+        project.validate(),
+        Err(SchemaError::InvalidNumericOperation { .. })
+    ));
+
+    // Arbre dépassant la profondeur max (MAX_EXPRESSION_DEPTH = 16)
+    let mut deep_expr = ValueExpr::Literal(ScalarValue::Int(1));
+    for _ in 0..=MAX_EXPRESSION_DEPTH {
+        deep_expr = ValueExpr::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(deep_expr),
+            right: Box::new(ValueExpr::Literal(ScalarValue::Int(1))),
+        };
+    }
+
+    project.rules[0].actions[0] = RuleAction::SetField {
+        target,
+        value: deep_expr,
+    };
+
+    assert!(matches!(
+        project.validate(),
+        Err(SchemaError::ExpressionTooDeep { .. })
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn backwards_compatible_with_v0_1_0_syntax() -> Result<(), SchemaError> {
+    // Schéma v0.1.0 utilisant des littéraux scalaires bruts
+    let json_v0_1_0 = r#"{
+        "schema_version": { "major": 0, "minor": 1, "patch": 0 },
+        "project_id": "legacy_project",
+        "display_name": "Projet V1",
+        "components": [{
+            "id": "stats",
+            "fields": { "hp": { "kind": "int", "default_value": { "kind": "int", "data": 10 } } }
+        }],
+        "entities": [{
+            "id": "hero",
+            "components": { "stats": { "hp": { "kind": "int", "data": 10 } } }
+        }],
+        "events": [],
+        "rules": [{
+            "id": "tick_rule",
+            "trigger": { "kind": "on_tick" },
+            "condition": null,
+            "actions": [{
+                "kind": "add_numeric",
+                "target": { "entity_id": "hero", "component_id": "stats", "field_id": "hp" },
+                "delta": { "kind": "int", "data": 1 }
+            }]
+        }]
+    }"#;
+
+    let project = ProjectDef::from_json_str(json_v0_1_0)?;
+    assert_eq!(project.project_id.as_str(), "legacy_project");
+    project.validate()?;
     Ok(())
 }
 

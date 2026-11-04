@@ -10,7 +10,7 @@ use crate::error::SchemaError;
 /// Version courante du schéma supportée par `hydrogen-schema`.
 pub const CURRENT_SCHEMA_VERSION: SchemaVersion = SchemaVersion {
     major: 0,
-    minor: 1,
+    minor: 2,
     patch: 0,
 };
 

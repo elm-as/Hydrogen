@@ -2,6 +2,7 @@
 import type { FieldAddress } from "./FieldAddress";
 import type { Identifier } from "./Identifier";
 import type { ScalarValue } from "./ScalarValue";
+import type { ValueExpr } from "./ValueExpr";
 
 /**
  * Effet déclaratif produit lorsqu'une règle est déclenchée et que sa condition est vraie.
@@ -12,17 +13,17 @@ export type RuleAction = { "kind": "set_field",
  */
 target: FieldAddress, 
 /**
- * Nouvelle valeur affectée au champ.
+ * Expression dont le résultat est affecté au champ.
  */
-value: ScalarValue, } | { "kind": "add_numeric", 
+value: ValueExpr, } | { "kind": "add_numeric", 
 /**
  * Adresse du champ numérique à incrémenter/décrémenter.
  */
 target: FieldAddress, 
 /**
- * Delta numérique (`Int` ou `Float`) à additionner.
+ * Expression numérique (`Int` ou `Float`) dont le résultat est additionné.
  */
-delta: ScalarValue, } | { "kind": "emit_event", 
+delta: ValueExpr, } | { "kind": "emit_event", 
 /**
  * Identifiant de l'événement émis.
  */

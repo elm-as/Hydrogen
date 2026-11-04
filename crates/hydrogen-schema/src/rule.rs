@@ -6,6 +6,8 @@ use hydrogen_core::{FieldAddress, Identifier, ScalarValue};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::expression::ValueExpr;
+
 /// Déclencheur d'une règle déclarative.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "event_id", rename_all = "snake_case")]
@@ -41,27 +43,27 @@ pub struct RuleCondition {
     pub target: FieldAddress,
     /// Opérateur de comparaison appliqué.
     pub operator: ComparisonOperator,
-    /// Valeur de référence comparée au champ.
-    pub expected: ScalarValue,
+    /// Valeur de référence comparée au champ (constante ou expression calculée).
+    pub expected: ValueExpr,
 }
 
 /// Effet déclaratif produit lorsqu'une règle est déclenchée et que sa condition est vraie.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RuleAction {
-    /// Remplace la valeur d'un champ par une nouvelle valeur constante.
+    /// Remplace la valeur d'un champ par le résultat d'une expression.
     SetField {
         /// Adresse du champ à modifier.
         target: FieldAddress,
-        /// Nouvelle valeur affectée au champ.
-        value: ScalarValue,
+        /// Expression dont le résultat est affecté au champ.
+        value: ValueExpr,
     },
     /// Ajoute un delta numérique (`Int` ou `Float`) à un champ numérique existant.
     AddNumeric {
         /// Adresse du champ numérique à incrémenter/décrémenter.
         target: FieldAddress,
-        /// Delta numérique (`Int` ou `Float`) à additionner.
-        delta: ScalarValue,
+        /// Expression numérique (`Int` ou `Float`) dont le résultat est additionné.
+        delta: ValueExpr,
     },
     /// Émet un nouvel événement dans le bus d'événements du runtime.
     EmitEvent {

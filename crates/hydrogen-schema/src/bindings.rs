@@ -8,6 +8,7 @@ use hydrogen_core::{
 use ts_rs::TS;
 
 use crate::error::SchemaError;
+use crate::expression::{BinaryOperator, ValueExpr};
 use crate::model::{ComponentDef, ComponentFieldDef, EntityDef, EventDef};
 use crate::project::ProjectDef;
 use crate::rule::{ComparisonOperator, RuleAction, RuleCondition, RuleDef, RuleTrigger};
@@ -34,6 +35,8 @@ pub fn export_typescript_bindings(output_dir: &Path) -> Result<(), SchemaError> 
     ComponentDef::export_all_to(output_dir).map_err(map_err)?;
     EntityDef::export_all_to(output_dir).map_err(map_err)?;
     EventDef::export_all_to(output_dir).map_err(map_err)?;
+    BinaryOperator::export_all_to(output_dir).map_err(map_err)?;
+    ValueExpr::export_all_to(output_dir).map_err(map_err)?;
     RuleTrigger::export_all_to(output_dir).map_err(map_err)?;
     ComparisonOperator::export_all_to(output_dir).map_err(map_err)?;
     RuleCondition::export_all_to(output_dir).map_err(map_err)?;

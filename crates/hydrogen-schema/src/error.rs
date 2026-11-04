@@ -66,6 +66,15 @@ pub enum SchemaError {
         rule_id: String,
     },
 
+    /// Un arbre d'expression dépasse la profondeur maximale autorisée.
+    #[error("expression trop profonde dans {context} (maximum {max_depth} niveaux)")]
+    ExpressionTooDeep {
+        /// Emplacement de l'expression.
+        context: String,
+        /// Profondeur maximale autorisée.
+        max_depth: usize,
+    },
+
     /// Erreur de format JSON lors du chargement ou de l'export.
     #[error("erreur JSON : {message}")]
     JsonFormat {
