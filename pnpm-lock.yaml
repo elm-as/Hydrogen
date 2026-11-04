@@ -26,6 +26,13 @@ importers:
       '@hydrogen/bindings':
         specifier: workspace:*
         version: link:../../packages/bindings
+      '@hydrogen/wasm-core':
+        specifier: workspace:*
+        version: link:../../packages/wasm-core
+    devDependencies:
+      vite:
+        specifier: ^6.2.0
+        version: 6.4.5
 
   apps/studio:
     dependencies:
@@ -48,6 +55,8 @@ importers:
         version: link:../bindings
 
   packages/ui-kit: {}
+
+  packages/wasm-core: {}
 
 packages:
 

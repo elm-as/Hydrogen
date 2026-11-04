@@ -2,6 +2,7 @@
 
 use hydrogen_core::{EventBus, RuntimeEvent, WorldState};
 use hydrogen_schema::{ProjectDef, RuleDef, RuleTrigger};
+use serde::{Deserialize, Serialize};
 
 use crate::action::apply_action;
 use crate::condition::evaluate_condition;
@@ -10,7 +11,7 @@ use crate::error::RuntimeError;
 use crate::world_builder::build_initial_world;
 
 /// Résumé métrique d'un cycle d'exécution (`tick`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TickReport {
     /// Numéro séquentiel du cycle (commence à 1).
     pub tick_index: u64,

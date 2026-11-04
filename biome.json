@@ -12,7 +12,8 @@
       "dist",
       "target",
       "pnpm-lock.yaml",
-      "packages/bindings/src/generated/**"
+      "packages/bindings/src/generated/**",
+      "packages/wasm-core/**"
     ]
   },
   "formatter": {

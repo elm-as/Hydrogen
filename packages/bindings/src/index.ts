@@ -18,3 +18,4 @@ export type { RuntimeEvent } from "./generated/RuntimeEvent.js";
 export type { ScalarValue } from "./generated/ScalarValue.js";
 export type { SchemaVersion } from "./generated/SchemaVersion.js";
 export type { ValueKind } from "./generated/ValueKind.js";
+export type { WorldState } from "./generated/WorldState.js";

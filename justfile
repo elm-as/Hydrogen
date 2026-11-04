@@ -38,6 +38,10 @@ test: test-rust test-ts
 bench:
     cargo bench -p hydrogen-runtime
 
+# Compile le cœur Rust en WebAssembly
+build-wasm:
+    wasm-pack build crates/hydrogen-wasm --target web --out-dir ../../packages/wasm-core --release
+
 # Formate l'ensemble du code (Rust + TypeScript)
 fmt:
     cargo fmt --all

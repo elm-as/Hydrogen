@@ -2,6 +2,7 @@
 /target/
 **/dist/
 **/node_modules/
+/packages/wasm-core/
 
 # OS & Editor
 .DS_Store

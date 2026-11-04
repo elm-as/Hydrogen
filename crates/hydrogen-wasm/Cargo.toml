@@ -8,6 +8,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -15,6 +18,8 @@ crate-type = ["cdylib", "rlib"]
 hydrogen-core.workspace = true
 hydrogen-schema.workspace = true
 hydrogen-runtime.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
 
 [lints]
 workspace = true

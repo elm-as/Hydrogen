@@ -8,6 +8,7 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "build:wasm": "wasm-pack build crates/hydrogen-wasm --target web --out-dir ../../packages/wasm-core --release",
     "check:lines": "node scripts/check-file-length.mjs",
     "format": "biome format --write .",
     "format:check": "biome format .",

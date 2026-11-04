@@ -3,7 +3,7 @@ import { extname, join, relative } from "node:path";
 
 const MAX_LINES = 350;
 const ROOT_DIR = process.cwd();
-const IGNORED_DIRS = new Set([".git", "node_modules", "target", "dist", ".turbo"]);
+const IGNORED_DIRS = new Set([".git", "node_modules", "target", "dist", ".turbo", "wasm-core"]);
 const CHECKED_EXTENSIONS = new Set([
   ".rs",
   ".ts",

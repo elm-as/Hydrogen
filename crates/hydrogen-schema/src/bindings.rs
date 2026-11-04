@@ -2,7 +2,9 @@
 
 use std::path::Path;
 
-use hydrogen_core::{EntityState, FieldAddress, Identifier, RuntimeEvent, ScalarValue, ValueKind};
+use hydrogen_core::{
+    EntityState, FieldAddress, Identifier, RuntimeEvent, ScalarValue, ValueKind, WorldState,
+};
 use ts_rs::TS;
 
 use crate::error::SchemaError;
@@ -25,6 +27,7 @@ pub fn export_typescript_bindings(output_dir: &Path) -> Result<(), SchemaError> 
     ScalarValue::export_all_to(output_dir).map_err(map_err)?;
     FieldAddress::export_all_to(output_dir).map_err(map_err)?;
     EntityState::export_all_to(output_dir).map_err(map_err)?;
+    WorldState::export_all_to(output_dir).map_err(map_err)?;
     RuntimeEvent::export_all_to(output_dir).map_err(map_err)?;
     SchemaVersion::export_all_to(output_dir).map_err(map_err)?;
     ComponentFieldDef::export_all_to(output_dir).map_err(map_err)?;
