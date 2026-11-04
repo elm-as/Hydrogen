@@ -5,15 +5,25 @@ import initWasm, { WasmRuntime } from "@hydrogen/wasm-core";
 import type { Node } from "@xyflow/react";
 import { useEffect, useMemo, useState } from "react";
 
+import counterProjectJson from "../../../templates/app/project.json";
+import rogueProjectJson from "../../../templates/game/project.json";
+import { EventLog, type LogEntry } from "./components/EventLog";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { NodalCanvas } from "./components/NodalCanvas";
-import { RogueGameView } from "./components/RogueGameView";
-import { COUNTER_PROJECT, ROGUE_PROJECT } from "./templates/projects";
+import { PlayerActions } from "./components/PlayerActions";
+import { WorldStateView } from "./components/WorldStateView";
 import "./style.css";
+
+interface TickReportJson {
+  tick_index: number;
+  rules_executed: number;
+  events_processed: number;
+  emitted_events: string[];
+}
 
 export function App() {
   const [activeProjectKey, setActiveProjectKey] = useState<"rogue" | "counter">("rogue");
-  const [activeTab, setActiveTab] = useState<"game" | "graph">("game");
+  const [activeTab, setActiveTab] = useState<"world" | "graph">("world");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const [wasmReady, setWasmReady] = useState(false);
@@ -22,10 +32,13 @@ export function App() {
   const [simulatedWorld, setSimulatedWorld] = useState<WorldState | null>(null);
   const [statusMessage, setStatusMessage] = useState("Initialisation WASM...");
   const [hasSavedSlot, setHasSavedSlot] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  const project: ProjectDef = activeProjectKey === "rogue" ? ROGUE_PROJECT : COUNTER_PROJECT;
+  const project: ProjectDef =
+    activeProjectKey === "rogue"
+      ? (rogueProjectJson as unknown as ProjectDef)
+      : (counterProjectJson as unknown as ProjectDef);
 
-  // Initialisation du runtime WASM
   useEffect(() => {
     async function boot() {
       try {
@@ -38,7 +51,6 @@ export function App() {
     boot();
   }, []);
 
-  // Recréation du runtime lors du changement de projet
   useEffect(() => {
     if (!wasmReady) return;
     try {
@@ -47,14 +59,14 @@ export function App() {
       setTicksCount(0);
       setSimulatedWorld(JSON.parse(rt.get_world_state_json()) as WorldState);
       setStatusMessage(`Projet '${project.display_name}' chargé.`);
+      setLogs([]);
       const saved = localStorage.getItem(`hydrogen_slot_${project.project_id}`);
       setHasSavedSlot(saved !== null);
     } catch (err) {
-      setStatusMessage(`Erreur de chargement : ${String(err)}`);
+      setStatusMessage(`Erreur chargement : ${String(err)}`);
     }
   }, [project, wasmReady]);
 
-  // Conversion en graphe nodal
   const { flowNodes, flowEdges } = useMemo(() => {
     const graph = projectDefToGraph(project);
     const nodes: Node[] = graph.nodes.map((n) => ({
@@ -77,24 +89,66 @@ export function App() {
   function handleTick() {
     if (!runtime) return;
     try {
-      runtime.tick();
+      const reportJson = runtime.tick();
+      const report = JSON.parse(reportJson) as TickReportJson;
       const updatedWorld = JSON.parse(runtime.get_world_state_json()) as WorldState;
       const count = Number(runtime.get_tick_count());
+
       setSimulatedWorld(updatedWorld);
       setTicksCount(count);
-      setStatusMessage(`Cycle ${count} exécuté par le cœur Rust.`);
+      setStatusMessage(
+        `Cycle ${count} : ${report.rules_executed} règle(s), ${report.events_processed} événement(s).`,
+      );
+
+      const entry: LogEntry = {
+        id: `${count}-${Date.now()}`,
+        tick: count,
+        type: "tick",
+        message: `Cycle complété — ${report.rules_executed} règle(s), ${report.events_processed} événement(s)${report.emitted_events.length > 0 ? ` [émis: ${report.emitted_events.join(", ")}]` : ""}`,
+      };
+      setLogs((prev) => [entry, ...prev.slice(0, 49)]);
     } catch (err) {
       setStatusMessage(`Erreur cycle : ${String(err)}`);
     }
   }
 
+  function handleTriggerPlayerEvent(eventId: string) {
+    if (!runtime) return;
+    try {
+      runtime.publish_event_by_id(eventId, undefined);
+      const reportJson = runtime.tick();
+      const report = JSON.parse(reportJson) as TickReportJson;
+      const updatedWorld = JSON.parse(runtime.get_world_state_json()) as WorldState;
+      const count = Number(runtime.get_tick_count());
+
+      setSimulatedWorld(updatedWorld);
+      setTicksCount(count);
+      setStatusMessage(`Action joueur '${eventId}' exécutée au cycle ${count}.`);
+
+      const entry: LogEntry = {
+        id: `${count}-${Date.now()}`,
+        tick: count,
+        type: "action",
+        message: `Action joueur déclenchée : '${eventId}' -> ${report.rules_executed} règle(s) cascade${report.emitted_events.length > 0 ? ` [émis: ${report.emitted_events.join(", ")}]` : ""}`,
+      };
+      setLogs((prev) => [entry, ...prev.slice(0, 49)]);
+    } catch (err) {
+      setStatusMessage(`Erreur action '${eventId}' : ${String(err)}`);
+    }
+  }
+
   function handleReset() {
     if (!wasmReady) return;
-    const rt = new WasmRuntime(JSON.stringify(project));
-    setRuntime(rt);
-    setTicksCount(0);
-    setSimulatedWorld(JSON.parse(rt.get_world_state_json()) as WorldState);
-    setStatusMessage("Partie réinitialisée.");
+    try {
+      const rt = new WasmRuntime(JSON.stringify(project));
+      setRuntime(rt);
+      setTicksCount(0);
+      setSimulatedWorld(JSON.parse(rt.get_world_state_json()) as WorldState);
+      setLogs([]);
+      setStatusMessage("Simulation réinitialisée à l'état initial.");
+    } catch (err) {
+      setStatusMessage(`Erreur réinitialisation : ${String(err)}`);
+    }
   }
 
   function handleSaveSlot() {
@@ -107,17 +161,22 @@ export function App() {
 
   function handleLoadSlot() {
     const saved = localStorage.getItem(`hydrogen_slot_${project.project_id}`);
-    if (!saved || !wasmReady) return;
+    if (!saved || !runtime) return;
     try {
       const data = JSON.parse(saved) as { tick: number; world: WorldState };
-      const rt = new WasmRuntime(JSON.stringify(project));
-      for (let i = 0; i < data.tick; i += 1) {
-        rt.tick();
-      }
-      setRuntime(rt);
+      runtime.restore_world_state(JSON.stringify(data.world), BigInt(data.tick));
+      const restored = JSON.parse(runtime.get_world_state_json()) as WorldState;
+      setSimulatedWorld(restored);
       setTicksCount(data.tick);
-      setSimulatedWorld(data.world);
-      setStatusMessage(`Slot restauré au cycle ${data.tick}.`);
+      setStatusMessage(`Slot restauré avec succès au cycle ${data.tick} via WASM.`);
+
+      const entry: LogEntry = {
+        id: `restore-${Date.now()}`,
+        tick: data.tick,
+        type: "event",
+        message: `Restauration complète de l'état du monde depuis la sauvegarde (cycle ${data.tick})`,
+      };
+      setLogs((prev) => [entry, ...prev.slice(0, 49)]);
     } catch (err) {
       setStatusMessage(`Erreur restauration : ${String(err)}`);
     }
@@ -128,7 +187,7 @@ export function App() {
       <header className="studio-topbar">
         <div className="studio-title">
           <span>Hydrogen Studio</span>
-          <Badge variant="accent">WASM Rust v0.1.0</Badge>
+          <Badge variant="accent">WASM Rust v0.2.0</Badge>
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -137,16 +196,16 @@ export function App() {
             onChange={(e) => setActiveProjectKey(e.target.value as "rogue" | "counter")}
             style={selectStyle}
           >
-            <option value="rogue">Rogue Core (Mini-Jeu)</option>
+            <option value="rogue">Rogue Core (Dungeon Crawler)</option>
             <option value="counter">Application Compteur</option>
           </select>
 
           <Button
-            variant={activeTab === "game" ? "primary" : "secondary"}
+            variant={activeTab === "world" ? "primary" : "secondary"}
             size="sm"
-            onClick={() => setActiveTab("game")}
+            onClick={() => setActiveTab("world")}
           >
-            Vue Jeu
+            Vue Données
           </Button>
           <Button
             variant={activeTab === "graph" ? "primary" : "secondary"}
@@ -159,17 +218,23 @@ export function App() {
       </header>
 
       <div className="studio-workspace">
-        <div className="studio-canvas">
-          {activeTab === "game" ? (
-            <RogueGameView
-              world={simulatedWorld}
-              tickCount={ticksCount}
-              onTick={handleTick}
-              onReset={handleReset}
-            />
-          ) : (
-            <NodalCanvas nodes={flowNodes} edges={flowEdges} onNodeClick={setSelectedNodeId} />
-          )}
+        <div className="studio-canvas" style={{ display: "flex", flexDirection: "column" }}>
+          <PlayerActions
+            events={project.events}
+            onTriggerPlayerEvent={handleTriggerPlayerEvent}
+            onTick={handleTick}
+            onReset={handleReset}
+          />
+
+          <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+            {activeTab === "world" ? (
+              <WorldStateView world={simulatedWorld} tickCount={ticksCount} />
+            ) : (
+              <NodalCanvas nodes={flowNodes} edges={flowEdges} onNodeClick={setSelectedNodeId} />
+            )}
+          </div>
+
+          <EventLog logs={logs} onClear={() => setLogs([])} />
         </div>
 
         <InspectorPanel

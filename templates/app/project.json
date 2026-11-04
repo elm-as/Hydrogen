@@ -1,11 +1,11 @@
 {
   "schema_version": {
     "major": 0,
-    "minor": 1,
+    "minor": 2,
     "patch": 0
   },
   "project_id": "sample_app",
-  "display_name": "Sample Hydrogen Application",
+  "display_name": "Application Compteur",
   "components": [
     {
       "id": "counter",
@@ -36,6 +36,12 @@
   "events": [
     {
       "id": "step_completed",
+      "source": "internal",
+      "payload_fields": {}
+    },
+    {
+      "id": "player_increment",
+      "source": "player",
       "payload_fields": {}
     }
   ],
@@ -63,6 +69,28 @@
           "kind": "emit_event",
           "event_id": "step_completed",
           "payload": {}
+        }
+      ]
+    },
+    {
+      "id": "increment_by_player",
+      "trigger": {
+        "kind": "on_event",
+        "event_id": "player_increment"
+      },
+      "condition": null,
+      "actions": [
+        {
+          "kind": "add_numeric",
+          "target": {
+            "entity_id": "app_state",
+            "component_id": "counter",
+            "field_id": "value"
+          },
+          "delta": {
+            "kind": "int",
+            "data": 10
+          }
         }
       ]
     }
